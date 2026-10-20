@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Young's Double Slit Interference Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            950: '#082f49'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        canvas {
+            touch-action: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.4);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col overflow-x-hidden select-none">
+
+    <header class="glass-panel sticky top-0 z-50 border-b border-slate-800 px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-slate-900 rounded-xl border border-cyan-500/30 text-cyan-400 shadow-lg shadow-cyan-950/50">
+                <i class="fa-solid fa-sliders text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg md:text-xl tracking-tight flex items-center gap-2">
+                    Young's Double Slit <span class="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/30 text-cyan-400">Source, Slit & Film Effects</span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Source Shifts, Slit Offsets & Thin Film Optical Phase / Attenuation Effects</p>
+            </div>
+        </div>
+
+        <!-- Presets Bar -->
+        <div class="flex items-center gap-2 flex-wrap">
+            <button id="presetShiftSource" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-cyan-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-up text-xs"></i> Shift Source Up
+            </button>
+            <button id="presetGlassFilm" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-amber-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-layer-group text-xs"></i> Glass Film S1
+            </button>
+            <button id="presetBlocker" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-rose-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-half-stroke text-xs"></i> 50% Blocker S1
+            </button>
+            <button id="presetReset" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-cyan-600 hover:bg-cyan-500 text-white transition flex items-center gap-1.5 shadow-md shadow-cyan-950">
+                <i class="fa-solid fa-rotate-left text-xs"></i> Reset Standard
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 max-w-[1920px] mx-auto w-full">
+        
+        <!-- Left Sidebar: Controls & Physics HUD (4 Cols) -->
+        <aside class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Tab Navigation for Controls -->
+            <div class="glass-panel p-2 rounded-2xl flex justify-between gap-1 text-xs font-medium">
+                <button id="tabSourceBtn" class="flex-1 py-2 rounded-xl transition bg-cyan-600 text-white shadow-md">
+                    <i class="fa-solid fa-lightbulb mr-1"></i> Source
+                </button>
+                <button id="tabSlitBtn" class="flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-grip-lines-vertical mr-1"></i> Slits
+                </button>
+                <button id="tabFilmBtn" class="flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-film mr-1"></i> Film / Cover
+                </button>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-4">
+                
+                <!-- SOURCE CONTROLS PANEL -->
+                <div id="panelSource" class="space-y-3.5">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <h2 class="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-lightbulb text-yellow-400"></i> Light Source Configuration
+                        </h2>
+                    </div>
+
+                    <!-- Source Shift Y -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Source Vertical Shift ($y_s$):</span>
+                            <span id="ysVal" class="font-mono text-yellow-400">0.00 mm</span>
+                        </div>
+                        <input id="ysSlider" type="range" min="-2.00" max="2.00" step="0.05" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-400">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-0.5 font-mono">
+                            <span>-2.0 mm (Down)</span>
+                            <span>0.0 (Center)</span>
+                            <span>+2.0 mm (Up)</span>
+                        </div>
+                    </div>
+
+                    <!-- Source Distance L_s -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Source to Slit Distance ($L_s$):</span>
+                            <span id="LsVal" class="font-mono text-cyan-400">0.50 m</span>
+                        </div>
+                        <input id="LsSlider" type="range" min="0.20" max="1.50" step="0.05" value="0.50" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                    </div>
+
+                    <!-- Wavelength lambda -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Light Wavelength ($\lambda$):</span>
+                            <span id="lambdaVal" class="font-mono text-emerald-400">632.8 nm</span>
+                        </div>
+                        <input id="lambdaSlider" type="range" min="380" max="750" step="1" value="633" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400">
+                    </div>
+                </div>
+
+                <!-- SLIT CONTROLS PANEL (Hidden initially) -->
+                <div id="panelSlit" class="space-y-3.5 hidden">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <h2 class="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-grip-lines-vertical text-cyan-400"></i> Double Slit Barrier Controls
+                        </h2>
+                    </div>
+
+                    <!-- Slit Shift Y -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Barrier Vertical Shift ($y_{slit}$):</span>
+                            <span id="yslitVal" class="font-mono text-cyan-400">0.00 mm</span>
+                        </div>
+                        <input id="yslitSlider" type="range" min="-1.50" max="1.50" step="0.05" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                    </div>
+
+                    <!-- Slit Separation d -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Slit Separation ($d$):</span>
+                            <span id="dVal" class="font-mono text-cyan-400">0.25 mm</span>
+                        </div>
+                        <input id="dSlider" type="range" min="0.10" max="0.80" step="0.01" value="0.25" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                    </div>
+
+                    <!-- Distance D to Screen -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Slit to Screen Distance ($D$):</span>
+                            <span id="DVal" class="font-mono text-cyan-400">1.20 m</span>
+                        </div>
+                        <input id="DSlider" type="range" min="0.50" max="2.50" step="0.05" value="1.20" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                    </div>
+                </div>
+
+                <!-- MATERIAL FILM CONTROLS PANEL (Hidden initially) -->
+                <div id="panelFilm" class="space-y-3.5 hidden">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <h2 class="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-amber-400"></i> Material Cover / Thin Film
+                        </h2>
+                    </div>
+
+                    <!-- Covered Slit Selection -->
+                    <div>
+                        <label class="text-xs text-slate-300 mb-1 block">Covered Slit Target:</label>
+                        <select id="filmTargetSelect" class="w-full bg-slate-900 border border-slate-700 text-xs rounded-xl p-2 text-amber-300 font-mono outline-none focus:ring-1 focus:ring-amber-500">
+                            <option value="none">None (Both Slits Clear)</option>
+                            <option value="slit1">Slit 1 (Upper Slit)</option>
+                            <option value="slit2">Slit 2 (Lower Slit)</option>
+                        </select>
+                    </div>
+
+                    <!-- Refractive Index n -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Refractive Index ($n_{film}$):</span>
+                            <span id="nFilmVal" class="font-mono text-amber-400">1.500</span>
+                        </div>
+                        <input id="nFilmSlider" type="range" min="1.000" max="2.500" step="0.005" value="1.500" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-0.5 font-mono">
+                            <span>1.0 (Air)</span>
+                            <span>1.5 (Glass)</span>
+                            <span>2.42 (Diamond)</span>
+                        </div>
+                    </div>
+
+                    <!-- Thickness t -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Film Thickness ($t_{film}$):</span>
+                            <span id="tFilmVal" class="font-mono text-amber-400">4.50 µm</span>
+                        </div>
+                        <input id="tFilmSlider" type="range" min="0.00" max="15.00" step="0.10" value="0.00" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400">
+                    </div>
+
+                    <!-- Transmittance T (Attenuation) -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Transmittance ($T$ / Amplitude Reduction):</span>
+                            <span id="transVal" class="font-mono text-rose-400">100 %</span>
+                        </div>
+                        <input id="transSlider" type="range" min="0" max="100" step="1" value="100" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-400">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-0.5 font-mono">
+                            <span>0% (Fully Blocked)</span>
+                            <span>100% (Transparent)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- General Visual Toggles -->
+                <div class="pt-3 border-t border-slate-800 flex flex-col gap-2 text-xs">
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-slate-300"><i class="fa-solid fa-wave-square text-cyan-400 mr-1.5"></i> Live Wave Waves Animation</span>
+                        <input id="animateWavesToggle" type="checkbox" checked class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-slate-300"><i class="fa-solid fa-chart-line text-purple-400 mr-1.5"></i> Show Unshifted Reference Pattern</span>
+                        <input id="showRefToggle" type="checkbox" checked class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+                    </label>
+                </div>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3">
+                <h2 class="text-xs font-semibold text-slate-200 uppercase tracking-wider border-b border-slate-800 pb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-calculator text-emerald-400 mr-1.5"></i> Analytical Physics HUD</span>
+                    <span id="fpsBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 border border-emerald-500/20">60 FPS</span>
+                </h2>
+
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-2 text-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Source Path Difference ($\Delta s_{src}$):</span>
+                        <span id="hudDeltaSrc" class="font-mono text-yellow-400 font-bold">0.00 nm</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Film Path OPL ($\Delta OPL_{film}$):</span>
+                        <span id="hudDeltaFilm" class="font-mono text-amber-400 font-bold">0.00 nm</span>
+                    </div>
+                    <div class="flex justify-between items-center border-t border-slate-800/60 pt-1">
+                        <span class="text-slate-300 font-medium">Net Fringe Shift ($\Delta Y_{screen}$):</span>
+                        <span id="hudNetShift" class="font-mono text-cyan-300 font-bold text-sm">0.00 mm</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Total Phase Shift ($\Delta \Phi$):</span>
+                        <span id="hudPhaseShift" class="font-mono text-purple-300 font-bold">0.00 rad</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Fringe Visibility ($V$):</span>
+                        <span id="hudVisibility" class="font-mono text-rose-400 font-bold">100.0 %</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Fringe Width ($\beta$):</span>
+                        <span id="hudBeta" class="font-mono text-emerald-300 font-bold">3.04 mm</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Right Viewports: Ray Canvas & Screen Patterns (8 Cols) -->
+        <section class="lg:col-span-8 flex flex-col gap-4">
+            
+            <!-- 1. Upper Panel: Optical Ray & Wave Propagation Canvas -->
+            <div class="glass-panel p-3 rounded-2xl flex flex-col gap-2">
+                <div class="flex justify-between items-center px-2 py-1">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                            2D Optical Schematic & Ray Propagation Diagram
+                        </h3>
+                    </div>
+                    <div class="text-[11px] font-mono text-slate-400">
+                        Dynamic Rays & Thin Film Highlights
+                    </div>
+                </div>
+
+                <div class="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 aspect-[16/8] min-h-[280px]">
+                    <canvas id="rayCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                
+                <!-- 2. Screen Appearance (2D Fringe View) -->
+                <div class="md:col-span-5 glass-panel p-3.5 rounded-2xl flex flex-col gap-2">
+                    <div class="flex justify-between items-center px-1">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-eye text-yellow-400"></i> Screen Pattern
+                        </h3>
+                        <span class="text-[10px] font-mono text-slate-400">Real-time Interference</span>
+                    </div>
+                    <div class="h-[160px] w-full bg-slate-950 rounded-xl border border-slate-800 p-2 relative overflow-hidden">
+                        <canvas id="fringeCanvas" class="w-full h-full block rounded-lg"></canvas>
+                    </div>
+                </div>
+
+                <!-- 3. Intensity Distribution Curve (I vs Y) -->
+                <div class="md:col-span-7 glass-panel p-3.5 rounded-2xl flex flex-col gap-2">
+                    <div class="flex justify-between items-center px-1">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-area text-cyan-400"></i> Intensity Profile $I(Y)$
+                        </h3>
+                        <div class="flex items-center gap-3 text-[10px] font-mono">
+                            <span class="flex items-center gap-1 text-slate-400"><span class="w-2 h-0.5 bg-slate-500 inline-block"></span> Unshifted</span>
+                            <span class="flex items-center gap-1 text-cyan-400"><span class="w-2 h-0.5 bg-cyan-400 inline-block"></span> Current</span>
+                        </div>
+                    </div>
+                    <div class="h-[160px] w-full bg-slate-950 rounded-xl border border-slate-800 p-1 relative">
+                        <canvas id="intensityCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        // State Machine
+        const STATE = {
+            time: 0,
+            animateWaves: true,
+            showRef: true,
+
+            // Source
+            ys: 0.0,       // mm
+            Ls: 0.50,      // m
+            lambda: 632.8, // nm
+
+            // Slits
+            yslit: 0.0,    // mm
+            d: 0.25,       // mm
+            D: 1.20,       // m
+
+            // Thin Film Cover
+            filmTarget: 'none', // 'none', 'slit1', 'slit2'
+            nFilm: 1.500,
+            tFilm: 0.0,     // um
+            transmittance: 1.0 // 0.0 to 1.0
+        };
+
+        // DOM Referencing
+        const elements = {
+            // Tabs
+            tabSourceBtn: document.getElementById('tabSourceBtn'),
+            tabSlitBtn: document.getElementById('tabSlitBtn'),
+            tabFilmBtn: document.getElementById('tabFilmBtn'),
+            panelSource: document.getElementById('panelSource'),
+            panelSlit: document.getElementById('panelSlit'),
+            panelFilm: document.getElementById('panelFilm'),
+
+            // Presets
+            presetShiftSource: document.getElementById('presetShiftSource'),
+            presetGlassFilm: document.getElementById('presetGlassFilm'),
+            presetBlocker: document.getElementById('presetBlocker'),
+            presetReset: document.getElementById('presetReset'),
+
+            // Source Sliders
+            ysSlider: document.getElementById('ysSlider'),
+            ysVal: document.getElementById('ysVal'),
+            LsSlider: document.getElementById('LsSlider'),
+            LsVal: document.getElementById('LsVal'),
+            lambdaSlider: document.getElementById('lambdaSlider'),
+            lambdaVal: document.getElementById('lambdaVal'),
+
+            // Slit Sliders
+            yslitSlider: document.getElementById('yslitSlider'),
+            yslitVal: document.getElementById('yslitVal'),
+            dSlider: document.getElementById('dSlider'),
+            dVal: document.getElementById('dVal'),
+            DSlider: document.getElementById('DSlider'),
+            DVal: document.getElementById('DVal'),
+
+            // Film Sliders
+            filmTargetSelect: document.getElementById('filmTargetSelect'),
+            nFilmSlider: document.getElementById('nFilmSlider'),
+            nFilmVal: document.getElementById('nFilmVal'),
+            tFilmSlider: document.getElementById('tFilmSlider'),
+            tFilmVal: document.getElementById('tFilmVal'),
+            transSlider: document.getElementById('transSlider'),
+            transVal: document.getElementById('transVal'),
+
+            // Toggles
+            animateWavesToggle: document.getElementById('animateWavesToggle'),
+            showRefToggle: document.getElementById('showRefToggle'),
+
+            // HUD Elements
+            hudDeltaSrc: document.getElementById('hudDeltaSrc'),
+            hudDeltaFilm: document.getElementById('hudDeltaFilm'),
+            hudNetShift: document.getElementById('hudNetShift'),
+            hudPhaseShift: document.getElementById('hudPhaseShift'),
+            hudVisibility: document.getElementById('hudVisibility'),
+            hudBeta: document.getElementById('hudBeta'),
+            fpsBadge: document.getElementById('fpsBadge')
+        };
+
+        const canvases = {
+            ray: document.getElementById('rayCanvas').getContext('2d'),
+            fringe: document.getElementById('fringeCanvas').getContext('2d'),
+            intensity: document.getElementById('intensityCanvas').getContext('2d')
+        };
+
+        // Standard Visual Scale Factor (pixels per mm on screen)
+        const SCREEN_SCALE_PX_PER_MM = 6;
+
+        // Wavelength RGB Converter
+        function wavelengthToRGB(lambda) {
+            let R, G, B;
+            if (lambda >= 380 && lambda < 440) {
+                R = -(lambda - 440) / (440 - 380); G = 0; B = 1;
+            } else if (lambda >= 440 && lambda < 490) {
+                R = 0; G = (lambda - 440) / (490 - 440); B = 1;
+            } else if (lambda >= 490 && lambda < 510) {
+                R = 0; G = 1; B = -(lambda - 510) / (510 - 490);
+            } else if (lambda >= 510 && lambda < 580) {
+                R = (lambda - 510) / (580 - 510); G = 1; B = 0;
+            } else if (lambda >= 580 && lambda < 645) {
+                R = 1; G = -(lambda - 645) / (645 - 580); B = 0;
+            } else if (lambda >= 645 && lambda <= 750) {
+                R = 1; G = 0; B = 0;
+            } else {
+                R = 0; G = 0; B = 0;
+            }
+            return { r: Math.round(R * 255), g: Math.round(G * 255), b: Math.round(B * 255) };
+        }
+
+        function resizeCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            ['rayCanvas', 'fringeCanvas', 'intensityCanvas'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                        el.width = rect.width * dpr;
+                        el.height = rect.height * dpr;
+                        const ctx = el.getContext('2d');
+                        ctx.scale(dpr, dpr);
+                    }
+                }
+            });
+        }
+        window.addEventListener('resize', resizeCanvases);
+
+        // Compute Physics Parameters
+        function getPhysicsData() {
+            const lambdaM = STATE.lambda * 1e-9;
+            const dM = STATE.d * 1e-3;
+            const DM = STATE.D;
+            const LsM = STATE.Ls;
+            const ysM = STATE.ys * 1e-3;
+            const yslitM = STATE.yslit * 1e-3;
+
+            // 1. Path difference due to source displacement
+            const deltaSrcM = (dM * ysM) / LsM;
+
+            // 2. Path difference due to barrier displacement relative to fixed source
+            const deltaSlitM = (dM * yslitM) / LsM;
+
+            // 3. Optical Path Length difference due to Thin Film
+            let deltaFilmM = 0;
+            const tFilmM = STATE.tFilm * 1e-6;
+            if (STATE.filmTarget === 'slit1') {
+                deltaFilmM = (STATE.nFilm - 1.0) * tFilmM;
+            } else if (STATE.filmTarget === 'slit2') {
+                deltaFilmM = -(STATE.nFilm - 1.0) * tFilmM;
+            }
+
+            // Full Net Shift Formula:
+            // - Source shift ys UP -> pattern shifts DOWN (-)
+            // - Film on Slit 1 UP -> pattern shifts UP (+)
+            // - Barrier shift yslit UP -> shifts pattern UP by yslit*(1 + D/Ls)
+            const netShiftM = -(DM / dM) * deltaSrcM + (DM / dM) * deltaFilmM + yslitM + (DM / dM) * deltaSlitM;
+            const netShiftMm = netShiftM * 1000;
+
+            // Net Optical Path Difference
+            const netDeltaOPLM = deltaSrcM - deltaFilmM - deltaSlitM;
+
+            // Total Phase Shift
+            const deltaPhi = (2 * Math.PI / lambdaM) * netDeltaOPLM;
+
+            // Amplitudes A1 and A2
+            let A1 = 1.0;
+            let A2 = 1.0;
+            if (STATE.filmTarget === 'slit1') {
+                A1 = Math.sqrt(STATE.transmittance);
+            } else if (STATE.filmTarget === 'slit2') {
+                A2 = Math.sqrt(STATE.transmittance);
+            }
+
+            // Fringe Visibility V = 2*A1*A2 / (A1^2 + A2^2)
+            const denom = (A1 * A1 + A2 * A2);
+            const visibility = denom > 0 ? (2 * A1 * A2) / denom : 0;
+
+            // Fringe width beta = lambda * D / d
+            const betaMm = (lambdaM * DM / dM) * 1000;
+
+            return {
+                deltaSrcNm: deltaSrcM * 1e9,
+                deltaFilmNm: Math.abs(deltaFilmM) * 1e9,
+                netShiftMm,
+                deltaPhi,
+                visibility,
+                betaMm,
+                A1,
+                A2
+            };
+        }
+
+        function updateHUD() {
+            const p = getPhysicsData();
+            elements.hudDeltaSrc.textContent = `${p.deltaSrcNm.toFixed(1)} nm`;
+            elements.hudDeltaFilm.textContent = `${p.deltaFilmNm.toFixed(1)} nm`;
+            elements.hudNetShift.textContent = `${p.netShiftMm >= 0 ? '+' : ''}${p.netShiftMm.toFixed(2)} mm`;
+            elements.hudPhaseShift.textContent = `${p.deltaPhi.toFixed(2)} rad`;
+            elements.hudVisibility.textContent = `${(p.visibility * 100).toFixed(1)} %`;
+            elements.hudBeta.textContent = `${p.betaMm.toFixed(2)} mm`;
+        }
+
+        function renderRayDiagram(ctx) {
+            const canvas = document.getElementById('rayCanvas');
+            const w = canvas.getBoundingClientRect().width;
+            const h = canvas.getBoundingClientRect().height;
+            ctx.clearRect(0, 0, w, h);
+
+            const centerY = h / 2;
+            const rgb = wavelengthToRGB(STATE.lambda);
+            const beamColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`;
+
+            // Key Positions
+            const sourceX = 60;
+            const slitX = w * 0.45;
+            const screenX = w - 40;
+
+            const sourceY = centerY - (STATE.ys * 25);
+            const slitCenterY = centerY - (STATE.yslit * 25);
+            const slitSepPx = Math.max(16, STATE.d * 100);
+
+            const slit1Y = slitCenterY - slitSepPx / 2;
+            const slit2Y = slitCenterY + slitSepPx / 2;
+
+            // 1. Draw Rays from Source to Slits
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = beamColor;
+
+            // Ray S -> S1
+            ctx.beginPath();
+            ctx.moveTo(sourceX, sourceY);
+            ctx.lineTo(slitX, slit1Y);
+            ctx.stroke();
+
+            // Ray S -> S2
+            ctx.beginPath();
+            ctx.moveTo(sourceX, sourceY);
+            ctx.lineTo(slitX, slit2Y);
+            ctx.stroke();
+
+            // 2. Animated Waves Propagation
+            if (STATE.animateWaves) {
+                ctx.lineWidth = 1;
+                for (let r = 10; r < 300; r += 12) {
+                    const opacity = Math.max(0, 1 - r / 300);
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity * 0.4})`;
+
+                    // Wavefronts from Slit 1
+                    ctx.beginPath();
+                    ctx.arc(slitX, slit1Y, r, -Math.PI / 3, Math.PI / 3);
+                    ctx.stroke();
+
+                    // Wavefronts from Slit 2
+                    ctx.beginPath();
+                    ctx.arc(slitX, slit2Y, r, -Math.PI / 3, Math.PI / 3);
+                    ctx.stroke();
+                }
+            }
+
+            // Rays from Slits to Central Max Shift Point on Screen
+            const pData = getPhysicsData();
+            const maxClampPx = h / 2 - 15;
+            const rawShiftPx = pData.netShiftMm * SCREEN_SCALE_PX_PER_MM;
+            const clampedShiftPx = Math.max(-maxClampPx, Math.min(maxClampPx, rawShiftPx));
+            const screenShiftY = centerY - clampedShiftPx;
+
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
+            ctx.beginPath();
+            ctx.moveTo(slitX, slit1Y);
+            ctx.lineTo(screenX, screenShiftY);
+            ctx.moveTo(slitX, slit2Y);
+            ctx.lineTo(screenX, screenShiftY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 3. Draw Source Node
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            ctx.arc(sourceX, sourceY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '10px JetBrains Mono';
+            ctx.fillText('Source S', sourceX - 25, sourceY - 10);
+
+            // 4. Draw Double Slit Barrier
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(slitX - 5, 0, 10, slit1Y - 4);
+            ctx.fillRect(slitX - 5, slit1Y + 4, 10, slit2Y - slit1Y - 8);
+            ctx.fillRect(slitX - 5, slit2Y + 4, 10, h - slit2Y - 4);
+
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(slitX - 5, 0, 10, slit1Y - 4);
+            ctx.strokeRect(slitX - 5, slit1Y + 4, 10, slit2Y - slit1Y - 8);
+            ctx.strokeRect(slitX - 5, slit2Y + 4, 10, h - slit2Y - 4);
+
+            // 5. Draw Thin Film Cover Highlight if active
+            if (STATE.filmTarget !== 'none' && STATE.tFilm > 0) {
+                const filmY = STATE.filmTarget === 'slit1' ? slit1Y : slit2Y;
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.4)';
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.fillRect(slitX + 5, filmY - 10, 12, 20);
+                ctx.strokeRect(slitX + 5, filmY - 10, 12, 20);
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText(`Film (n=${STATE.nFilm.toFixed(2)})`, slitX + 22, filmY + 4);
+            }
+
+            // Attenuation Blocker Symbol
+            if (STATE.filmTarget !== 'none' && STATE.transmittance < 1.0) {
+                const filmY = STATE.filmTarget === 'slit1' ? slit1Y : slit2Y;
+                ctx.fillStyle = `rgba(244, 63, 94, ${1 - STATE.transmittance})`;
+                ctx.fillRect(slitX - 4, filmY - 4, 8, 8);
+            }
+
+            // 6. Draw Screen
+            ctx.fillStyle = '#f43f5e';
+            ctx.fillRect(screenX - 2, 0, 4, h);
+
+            // Central Max Shift Indicator Point on Screen
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(screenX, screenShiftY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillText('Central Max', screenX - 75, screenShiftY + 3);
+        }
+
+        function renderFringeScreen(ctx) {
+            const canvas = document.getElementById('fringeCanvas');
+            const w = canvas.getBoundingClientRect().width;
+            const h = canvas.getBoundingClientRect().height;
+            ctx.clearRect(0, 0, w, h);
+
+            const centerY = h / 2;
+            const rgb = wavelengthToRGB(STATE.lambda);
+            const pData = getPhysicsData();
+
+            const betaPx = pData.betaMm * SCREEN_SCALE_PX_PER_MM;
+            const shiftPx = pData.netShiftMm * SCREEN_SCALE_PX_PER_MM;
+
+            const imgData = ctx.createImageData(Math.floor(w), Math.floor(h));
+            const data = imgData.data;
+
+            for (let y = 0; y < h; y++) {
+                // Physical Y-up coordinate conversion
+                const distFromCenter = (centerY - y) - shiftPx;
+                
+                const I1 = Math.pow(pData.A1, 2);
+                const I2 = Math.pow(pData.A2, 2);
+                const interference = 2 * pData.A1 * pData.A2 * Math.cos((2 * Math.PI * distFromCenter) / betaPx);
+                const intensity = Math.max(0, Math.min(1, (I1 + I2 + interference) / 4.0));
+
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * Math.floor(w) + x) * 4;
+                    data[idx] = Math.floor(rgb.r * intensity);
+                    data[idx + 1] = Math.floor(rgb.g * intensity);
+                    data[idx + 2] = Math.floor(rgb.b * intensity);
+                    data[idx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        function renderIntensityPlot(ctx) {
+            const canvas = document.getElementById('intensityCanvas');
+            const w = canvas.getBoundingClientRect().width;
+            const h = canvas.getBoundingClientRect().height;
+            ctx.clearRect(0, 0, w, h);
+
+            const centerY = h / 2;
+            const rgb = wavelengthToRGB(STATE.lambda);
+            const pData = getPhysicsData();
+
+            const betaPx = pData.betaMm * SCREEN_SCALE_PX_PER_MM;
+            const shiftPx = pData.netShiftMm * SCREEN_SCALE_PX_PER_MM;
+
+            // 1. Reference Curve (Unshifted Standard)
+            if (STATE.showRef) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(100, 116, 139, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 3]);
+
+                for (let y = 0; y < h; y++) {
+                    const distFromCenter = centerY - y;
+                    const intensity = Math.pow(Math.cos((Math.PI * distFromCenter) / betaPx), 2);
+                    const x = intensity * (w - 30);
+                    if (y === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // 2. Current Shifted & Attenuated Curve
+            ctx.beginPath();
+            ctx.strokeStyle = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+            ctx.lineWidth = 2;
+
+            for (let y = 0; y < h; y++) {
+                const distFromCenter = (centerY - y) - shiftPx;
+                const I1 = Math.pow(pData.A1, 2);
+                const I2 = Math.pow(pData.A2, 2);
+                const interference = 2 * pData.A1 * pData.A2 * Math.cos((2 * Math.PI * distFromCenter) / betaPx);
+                const intensity = Math.max(0, Math.min(1, (I1 + I2 + interference) / 4.0));
+
+                const x = intensity * (w - 30);
+                if (y === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Center Reference Line
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(w, centerY);
+            ctx.stroke();
+        }
+
+        // Main Animation Loop
+        let frameCount = 0;
+        let lastTime = performance.now();
+
+        function animate(currentTime) {
+            frameCount++;
+            if (currentTime - lastTime >= 1000) {
+                elements.fpsBadge.textContent = `${frameCount} FPS`;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+
+            if (STATE.animateWaves) {
+                STATE.time += 0.05;
+            }
+
+            updateHUD();
+            renderRayDiagram(canvases.ray);
+            renderFringeScreen(canvases.fringe);
+            renderIntensityPlot(canvases.intensity);
+
+            requestAnimationFrame(animate);
+        }
+
+        function bindEvents() {
+            // Tab Controls Switching
+            elements.tabSourceBtn.addEventListener('click', () => {
+                elements.tabSourceBtn.className = 'flex-1 py-2 rounded-xl transition bg-cyan-600 text-white shadow-md';
+                elements.tabSlitBtn.className = 'flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white';
+                elements.tabFilmBtn.className = 'flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white';
+
+                elements.panelSource.classList.remove('hidden');
+                elements.panelSlit.classList.add('hidden');
+                elements.panelFilm.classList.add('hidden');
+            });
+
+            elements.tabSlitBtn.addEventListener('click', () => {
+                elements.tabSlitBtn.className = 'flex-1 py-2 rounded-xl transition bg-cyan-600 text-white shadow-md';
+                elements.tabSourceBtn.className = 'flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white';
+                elements.tabFilmBtn.className = 'flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white';
+
+                elements.panelSlit.classList.remove('hidden');
+                elements.panelSource.classList.add('hidden');
+                elements.panelFilm.classList.add('hidden');
+            });
+
+            elements.tabFilmBtn.addEventListener('click', () => {
+                elements.tabFilmBtn.className = 'flex-1 py-2 rounded-xl transition bg-cyan-600 text-white shadow-md';
+                elements.tabSourceBtn.className = 'flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white';
+                elements.tabSlitBtn.className = 'flex-1 py-2 rounded-xl transition bg-slate-800 text-slate-300 hover:text-white';
+
+                elements.panelFilm.classList.remove('hidden');
+                elements.panelSource.classList.add('hidden');
+                elements.panelSlit.classList.add('hidden');
+            });
+
+            // Presets
+            elements.presetShiftSource.addEventListener('click', () => {
+                STATE.ys = 1.20;
+                elements.ysSlider.value = 1.20;
+                elements.ysVal.textContent = '+1.20 mm';
+                elements.tabSourceBtn.click();
+            });
+
+            elements.presetGlassFilm.addEventListener('click', () => {
+                STATE.filmTarget = 'slit1';
+                STATE.nFilm = 1.500;
+                STATE.tFilm = 4.50;
+                STATE.transmittance = 1.0;
+
+                elements.filmTargetSelect.value = 'slit1';
+                elements.nFilmSlider.value = 1.500;
+                elements.nFilmVal.textContent = '1.500';
+                elements.tFilmSlider.value = 4.50;
+                elements.tFilmVal.textContent = '4.50 µm';
+                elements.transSlider.value = 100;
+                elements.transVal.textContent = '100 %';
+                elements.tabFilmBtn.click();
+            });
+
+            elements.presetBlocker.addEventListener('click', () => {
+                STATE.filmTarget = 'slit1';
+                STATE.tFilm = 0.0;
+                STATE.transmittance = 0.5;
+
+                elements.filmTargetSelect.value = 'slit1';
+                elements.tFilmSlider.value = 0;
+                elements.tFilmVal.textContent = '0.00 µm';
+                elements.transSlider.value = 50;
+                elements.transVal.textContent = '50 %';
+                elements.tabFilmBtn.click();
+            });
+
+            elements.presetReset.addEventListener('click', () => {
+                STATE.ys = 0;
+                STATE.Ls = 0.50;
+                STATE.lambda = 633;
+                STATE.yslit = 0;
+                STATE.d = 0.25;
+                STATE.D = 1.20;
+                STATE.filmTarget = 'none';
+                STATE.nFilm = 1.500;
+                STATE.tFilm = 0;
+                STATE.transmittance = 1.0;
+
+                elements.ysSlider.value = 0;
+                elements.ysVal.textContent = '0.00 mm';
+                elements.LsSlider.value = 0.50;
+                elements.LsVal.textContent = '0.50 m';
+                elements.lambdaSlider.value = 633;
+                elements.lambdaVal.textContent = '632.8 nm';
+                elements.yslitSlider.value = 0;
+                elements.yslitVal.textContent = '0.00 mm';
+                elements.dSlider.value = 0.25;
+                elements.dVal.textContent = '0.25 mm';
+                elements.DSlider.value = 1.20;
+                elements.DVal.textContent = '1.20 m';
+                elements.filmTargetSelect.value = 'none';
+                elements.tFilmSlider.value = 0;
+                elements.tFilmVal.textContent = '0.00 µm';
+                elements.transSlider.value = 100;
+                elements.transVal.textContent = '100 %';
+            });
+
+            // Sliders Binding
+            elements.ysSlider.addEventListener('input', (e) => {
+                STATE.ys = parseFloat(e.target.value);
+                elements.ysVal.textContent = `${STATE.ys >= 0 ? '+' : ''}${STATE.ys.toFixed(2)} mm`;
+            });
+
+            elements.LsSlider.addEventListener('input', (e) => {
+                STATE.Ls = parseFloat(e.target.value);
+                elements.LsVal.textContent = `${STATE.Ls.toFixed(2)} m`;
+            });
+
+            elements.lambdaSlider.addEventListener('input', (e) => {
+                STATE.lambda = parseInt(e.target.value);
+                elements.lambdaVal.textContent = `${STATE.lambda} nm`;
+            });
+
+            elements.yslitSlider.addEventListener('input', (e) => {
+                STATE.yslit = parseFloat(e.target.value);
+                elements.yslitVal.textContent = `${STATE.yslit >= 0 ? '+' : ''}${STATE.yslit.toFixed(2)} mm`;
+            });
+
+            elements.dSlider.addEventListener('input', (e) => {
+                STATE.d = parseFloat(e.target.value);
+                elements.dVal.textContent = `${STATE.d.toFixed(2)} mm`;
+            });
+
+            elements.DSlider.addEventListener('input', (e) => {
+                STATE.D = parseFloat(e.target.value);
+                elements.DVal.textContent = `${STATE.D.toFixed(2)} m`;
+            });
+
+            elements.filmTargetSelect.addEventListener('change', (e) => {
+                STATE.filmTarget = e.target.value;
+            });
+
+            elements.nFilmSlider.addEventListener('input', (e) => {
+                STATE.nFilm = parseFloat(e.target.value);
+                elements.nFilmVal.textContent = STATE.nFilm.toFixed(3);
+            });
+
+            elements.tFilmSlider.addEventListener('input', (e) => {
+                STATE.tFilm = parseFloat(e.target.value);
+                elements.tFilmVal.textContent = `${STATE.tFilm.toFixed(2)} µm`;
+            });
+
+            elements.transSlider.addEventListener('input', (e) => {
+                STATE.transmittance = parseInt(e.target.value) / 100.0;
+                elements.transVal.textContent = `${e.target.value} %`;
+            });
+
+            elements.animateWavesToggle.addEventListener('change', (e) => {
+                STATE.animateWaves = e.target.checked;
+            });
+
+            elements.showRefToggle.addEventListener('change', (e) => {
+                STATE.showRef = e.target.checked;
+            });
+        }
+
+        window.onload = function() {
+            resizeCanvases();
+            bindEvents();
+            animate(performance.now());
+        };
+    </script>
+</body>
+</html>
